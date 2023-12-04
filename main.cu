@@ -3,8 +3,8 @@
 #include <time.h>
 #include <math.h>
 
-#define N 10000
-#define P 10000
+#define N 1000
+#define P 1000
 
 void MatrixInit(float *M, int n, int p){
     int i, j;
@@ -50,14 +50,6 @@ void MatrixMult(float *M1, float *M2, float *Mout, int n){
     }
 };
 
-__global__ void cudaMatrixAdd(float *M1, float *M2, float *Mout, int n, int p){
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
-    int j = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if(i<n && j<p){
-        Mout[i*p+j] = M1[i*p+j] + M2[i*p+j];
-    }
-}
 
 __global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
     int j = blockIdx.x * blockDim.x + threadIdx.x;
@@ -71,7 +63,43 @@ __global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
         }
         Mout[i*n+j] = sum;
     }
-}
+};
+__global__ void cudaMatrixAdd(float *M1, float *M2, float *Mout, int n, int p){
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if(i<n && j<p){
+        Mout[i*p+j] = M1[i*p+j] + M2[i*p+j];
+    }
+};
+
+__global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if(i < n && j < n){
+        Mout[i*n+j] = 0;
+        float sum = 0;
+        for(int k=0; k<n; k++){
+            sum += M1[i*n+k] * M2[k*n+j];
+        }
+        Mout[i*n+j] = sum;
+    }
+};
+
+__global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+    
+    if(i < n && j < n){
+        Mout[i*n+j] = 0;
+        float sum = 0;
+        for(int k=0; k<n; k++){
+            sum += M1[i*n+k] * M2[k*n+j];
+        }
+        Mout[i*n+j] = sum;
+    }
+};
 
 int main() {
     srand(time(NULL));
