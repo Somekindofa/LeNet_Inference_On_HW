@@ -3,9 +3,6 @@
 #include <time.h>
 #include <math.h>
 
-#define N 10000
-#define P 10000
-
 void MatrixInit(float *M, int n, int p){
     int i, j;
     for(i=0; i<n; i++){
@@ -51,7 +48,7 @@ void MatrixMult(float *M1, float *M2, float *Mout, int n){
 };
 
 __global__ void cudaMatrixAdd(float *M1, float *M2, float *Mout, int n, int p){
-	int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
     int j = blockIdx.y * blockDim.y + threadIdx.y;
 
     if(i<n && j<p){
@@ -62,7 +59,7 @@ __global__ void cudaMatrixAdd(float *M1, float *M2, float *Mout, int n, int p){
 __global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
     int j = blockIdx.x * blockDim.x + threadIdx.x;
     int i = blockIdx.y * blockDim.y + threadIdx.y;
-    
+
     if(i < n && j < n){
         Mout[i*n+j] = 0;
         float sum = 0;
@@ -73,21 +70,31 @@ __global__ void cudaMatrixMult(float *M1, float *M2, float *Mout, int n){
     }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     srand(time(NULL));
+    int N, P;
+
+    if (argc != 3) {
+        printf("Usage: %s <number of rows (N)> <number of columns (P)>\n", argv[0]);
+        return 1;
+    }
+
+    N = atoi(argv[1]);
+    P = atoi(argv[2]);
+
     // Allocation
     /////////////////
     clock_t start_time_CPU = clock(); // start time measure for CPU
 
-	float* M1   =(float*)malloc(N*N*sizeof(float));
-	float* M2   =(float*)malloc(N*N*sizeof(float));
-	float* Mout =(float*)malloc(N*N*sizeof(float));
+    float* M1   =(float*)malloc(N*P*sizeof(float));
+    float* M2   =(float*)malloc(N*P*sizeof(float));
+    float* Mout =(float*)malloc(N*P*sizeof(float));
     //////////////////
 
     // Init
     /////////////////
-    MatrixInit(M1, N, N);
-    MatrixInit(M2, N, N);
+    MatrixInit(M1, N, P);
+    MatrixInit(M2, N, P);
     /////////////////
 
 
@@ -106,16 +113,17 @@ int main() {
     clock_t start_time_GPU = clock(); // start time measure for GPU
 
     float *d_M1, *d_M2, *d_Mout;
-    cudaMalloc((void**)&d_M1, sizeof(float)*N*N);
-    cudaMalloc((void**)&d_M2, sizeof(float)*N*N);
-    cudaMalloc((void**)&d_Mout, sizeof(float)*N*N);
+    cudaMalloc((void**)&d_M1, sizeof(float)*N*P);
+    cudaMalloc((void**)&d_M2, sizeof(float)*N*P);
+    cudaMalloc((void**)&d_Mout, sizeof(float)*N*P);
 
     cudaMemcpy(d_M1, M1, sizeof(float)*N*P, cudaMemcpyHostToDevice);        // RAM --> GPU
     cudaMemcpy(d_M2, M2, sizeof(float)*N*P, cudaMemcpyHostToDevice);        // RAM --> GPU
     cudaMemcpy(d_Mout, Mout, sizeof(float)*N*P, cudaMemcpyHostToDevice);    // RAM --> GPU
 
+    dim3 dimGrid(ceil(N/32.0), ceil(P/32.0));
     dim3 dimBlock(32, 32);
-    dim3 dimGrid(ceil(N/32.0), ceil(N/32.0));
+
 
     cudaMatrixAdd<<<dimGrid, dimBlock>>>(d_M1, d_M2, d_Mout, N, P);
     cudaMemcpy(Mout, d_Mout, sizeof(float)*N*P, cudaMemcpyDeviceToHost);    // GPU --> RAM
