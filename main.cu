@@ -124,6 +124,15 @@ __global__ void cudaMatrixConvolve(float *raw, float *kernel, float *Mout, int n
     printf("Mout[%d] = %f\n", idx, Mout[idx]);
 }
 
+__global__ void cudaSubsample(float *M1, float *Mout, int n, int p){
+    int j = blockIdx.x * blockDim.x + threadIdx.x;
+    int i = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if(i < n && j < p){
+        Mout[i*p+j] = M1[i*2*p + 2*j];
+    }
+};
+
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
