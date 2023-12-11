@@ -104,6 +104,9 @@ __global__ void cudaMatrixConvolve(float *raw, float *kernel, float *Mout, int n
     int k = blockIdx.x;
     int r = blockIdx.y;
     int c = blockIdx.z;
+    if (k==0 & r==0 & c==0){
+        printf("n=%d, p=%d, kernelSize=%d\n", n, p, kernelSize);
+    }
 
     float sum = 0;
     // compute the multiplication of the kernel and the input matrix
@@ -112,13 +115,20 @@ __global__ void cudaMatrixConvolve(float *raw, float *kernel, float *Mout, int n
             sum += kernel[k*kernelSize*kernelSize + l*kernelSize + m] * raw[(r+l)*p + (c+m)];
         }
     }
-    Mout[k*n*p + r*p + c] = sum; // assign the result to the output matrix
-    printf("Mout[%d] = %f\n", k*n*p + r*p + c, Mout[k*n*p + r*p + c]);
+
+
+    int p_out = p - kernelSize + 1;
+    int n_out = n - kernelSize + 1;
+    int idx = k*n_out*p_out + r*p_out + c;
+    Mout[idx] = sum; // assign the result to the output matrix
+    printf("Mout[%d] = %f\n", idx, Mout[idx]);
 }
 
 
 int main(int argc, char *argv[]) {
     srand(time(NULL));
+
+    int kernel_size = 5;
 
     int rows = atoi(argv[1]);
     int cols = atoi(argv[2]);
@@ -128,7 +138,6 @@ int main(int argc, char *argv[]) {
     // Allocation
     /////////////////
     // clock_t start_time_CPU = clock(); // start time measure for CPU
-    int kernel_size = 5;
     int N1 = rows - kernel_size + 1;
     printf("N1 = %d \n", N1);
     float* raw_data     = (float*)malloc(N*sizeof(float));
@@ -161,7 +170,7 @@ int main(int argc, char *argv[]) {
     cudaMemcpy(d_S1_data, S1_data, sizeof(float)*channels*N1*(N1/4), cudaMemcpyHostToDevice);      // RAM --> GPU
 
     dim3 dimGrid(channels, N1, N1);
-
+    printf("dimGrid = %d, %d, %d\n", channels, N1, N1);
     cudaMatrixConvolve<<<dimGrid, 1>>>(d_raw, d_C1_kernel, d_C1_data, rows, cols, kernel_size);
     cudaMemcpy(C1_data, d_C1_data, sizeof(float)*channels*N1*N1, cudaMemcpyDeviceToHost);      // GPU --> RAM
 
